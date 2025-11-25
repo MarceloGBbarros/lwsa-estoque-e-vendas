@@ -1,7 +1,7 @@
 <?php
 
 namespace App\Jobs;
-
+use App\Exceptions\InsufficientStockException;
 use App\Models\InventoryMovement;
 use App\Models\Product;
 use App\Models\Sale;
@@ -44,11 +44,10 @@ class ProcessSaleJob implements ShouldQueue
                     ->firstOrFail();
 
                 if ($product->current_stock < $item->quantity) {
-                    // Marca venda como falhada e aborta totalmente (sem debitar estoque)
                     $sale->status = 'failed';
                     $sale->save();
 
-                    throw new RuntimeException("Insufficient stock for product ID {$product->id}");
+                    throw new InsufficientStockException("Estoque insuficiente para o produto ID {$product->id}");
                 }
             }
 

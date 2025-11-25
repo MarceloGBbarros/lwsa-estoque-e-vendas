@@ -1,7 +1,7 @@
 <?php
 
 namespace App\Services;
-
+use App\Exceptions\InsufficientStockException;
 use App\Models\InventoryMovement;
 use App\Models\Product;
 use Illuminate\Support\Facades\Cache;
@@ -74,7 +74,7 @@ class InventoryService
                 ->firstOrFail();
 
             if ($type === 'out' && $product->current_stock < $quantity) {
-                throw new RuntimeException('Insufficient stock for this operation.');
+                throw new InsufficientStockException('Estoque insuficiente para esta operação.');
             }
 
             $unitCostToUse = $unitCost ?? (float) $product->cost_price;
