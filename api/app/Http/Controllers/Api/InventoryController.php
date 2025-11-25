@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\StoreInventoryMovementRequest;
 use App\Services\InventoryService;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
 
 class InventoryController extends Controller
 {
@@ -13,12 +14,17 @@ class InventoryController extends Controller
         private readonly InventoryService $inventoryService
     ) {}
 
-    public function index(): JsonResponse
-    {
-        $data = $this->inventoryService->getInventorySummary();
+    public function index(Request $request): JsonResponse
+        {
+            $filters = [
+                'product_id' => $request->query('product_id'),
+                'sku'        => $request->query('sku'),
+            ];
 
-        return response()->json($data);
-    }
+            $data = $this->inventoryService->getInventorySummary($filters);
+
+            return response()->json($data);
+        }
 
     public function store(StoreInventoryMovementRequest $request): JsonResponse
     {

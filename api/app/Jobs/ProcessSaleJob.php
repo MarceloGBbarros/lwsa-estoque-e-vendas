@@ -47,7 +47,8 @@ class ProcessSaleJob implements ShouldQueue
                     $sale->status = 'failed';
                     $sale->save();
 
-                    throw new InsufficientStockException("Estoque insuficiente para o produto ID {$product->id}");
+                    // apenas marca como failed e aborta o job
+                    return;
                 }
             }
 

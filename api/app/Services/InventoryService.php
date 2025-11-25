@@ -13,49 +13,67 @@ class InventoryService
     /**
      * Lista o estoque atual com alguns agregados.
      */
-    public function getInventorySummary(): array
-    {
-        return Cache::remember('inventory:summary', now()->addSeconds(60), function () {
-            $products = Product::query()
-                ->select([
-                    'id',
-                    'sku',
-                    'name',
-                    'cost_price',
-                    'sale_price',
-                    'current_stock',
-                ])
-                ->get();
+    public function getInventorySummary(array $filters = []): array
+{
+    $productId = $filters['product_id'] ?? null;
+    $sku       = $filters['sku'] ?? null;
 
-            $totalStockValue = 0;
-            $totalPotentialProfit = 0;
+    $cacheKey = sprintf(
+        'inventory:summary:%s:%s',
+        $productId ?? 'all',
+        $sku       ?? 'all'
+    );
 
-            $items = $products->map(function (Product $product) use (&$totalStockValue, &$totalPotentialProfit) {
-                $stockValue = $product->current_stock * $product->sale_price;
-                $potentialProfit = $product->current_stock * ($product->sale_price - $product->cost_price);
+    return Cache::remember($cacheKey, now()->addSeconds(60), function () use ($productId, $sku) {
+        $query = Product::query()
+            ->select([
+                'id',
+                'sku',
+                'name',
+                'cost_price',
+                'sale_price',
+                'current_stock',
+            ]);
 
-                $totalStockValue += $stockValue;
-                $totalPotentialProfit += $potentialProfit;
+        if ($productId !== null) {
+            $query->whereKey($productId);
+        }
 
-                return [
-                    'id'               => $product->id,
-                    'sku'              => $product->sku,
-                    'name'             => $product->name,
-                    'cost_price'       => (float) $product->cost_price,
-                    'sale_price'       => (float) $product->sale_price,
-                    'current_stock'    => $product->current_stock,
-                    'stock_value'      => $stockValue,
-                    'potential_profit' => $potentialProfit,
-                ];
-            });
+        if ($sku !== null) {
+            $query->where('sku', $sku);
+        }
+
+        $products = $query->get();
+
+        $totalStockValue = 0;
+        $totalPotentialProfit = 0;
+
+        $items = $products->map(function (Product $product) use (&$totalStockValue, &$totalPotentialProfit) {
+            $stockValue      = $product->current_stock * $product->sale_price;
+            $potentialProfit = $product->current_stock * ($product->sale_price - $product->cost_price);
+
+            $totalStockValue      += $stockValue;
+            $totalPotentialProfit += $potentialProfit;
 
             return [
-                'items'                  => $items,
-                'total_stock_value'      => $totalStockValue,
-                'total_potential_profit' => $totalPotentialProfit,
+                'id'               => $product->id,
+                'sku'              => $product->sku,
+                'name'             => $product->name,
+                'cost_price'       => (float) $product->cost_price,
+                'sale_price'       => (float) $product->sale_price,
+                'current_stock'    => $product->current_stock,
+                'stock_value'      => $stockValue,
+                'potential_profit' => $potentialProfit,
             ];
         });
-    }
+
+        return [
+            'items'                   => $items,
+            'total_stock_value'       => $totalStockValue,
+            'total_potential_profit'  => $totalPotentialProfit,
+        ];
+    });
+}
 
     /**
      * Registra um movimento de estoque com segurança (transação + lock).

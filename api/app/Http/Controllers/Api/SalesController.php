@@ -19,7 +19,7 @@ class SalesController extends Controller
         $sale = $this->salesService->createSale($request->validated());
 
         return response()->json([
-            'message' => 'Sale created and queued for processing',
+            'message' => 'Pedido criado com sucesso',
             'data'    => [
                 'id'     => $sale->id,
                 'status' => $sale->status,
