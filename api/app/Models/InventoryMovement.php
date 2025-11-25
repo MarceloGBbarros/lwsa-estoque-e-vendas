@@ -21,4 +21,13 @@ class InventoryMovement extends Model
     {
         return $this->belongsTo(Product::class);
     }
+
+    protected $casts = [
+        'archived_at' => 'datetime',
+    ];
+
+    public function scopeNotArchived($query)
+    {
+        return $query->whereNull('archived_at');
+    }
 }
