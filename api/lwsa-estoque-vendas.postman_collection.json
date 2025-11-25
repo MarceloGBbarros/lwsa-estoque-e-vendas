@@ -1,0 +1,242 @@
+{
+  "info": {
+    "name": "LWSA - Estoque e Vendas",
+    "_postman_id": "d0c1f6c0-0000-0000-0000-lwsaestoquevendas",
+    "description": "Coleção de requisições para testar a API de Estoque, Vendas e Relatórios.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "01 - Estoque",
+      "item": [
+        {
+          "name": "Listar estoque (todos os produtos)",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Accept", "value": "application/json" }
+            ],
+            "url": {
+              "raw": "http://localhost:8000/api/inventory",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "8000",
+              "path": ["api", "inventory"]
+            }
+          }
+        },
+        {
+          "name": "Listar estoque por product_id (ex: 1)",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Accept", "value": "application/json" }
+            ],
+            "url": {
+              "raw": "http://localhost:8000/api/inventory?product_id=1",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "8000",
+              "path": ["api", "inventory"],
+              "query": [
+                { "key": "product_id", "value": "1" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Listar estoque por SKU (ex: SKU-0001)",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Accept", "value": "application/json" }
+            ],
+            "url": {
+              "raw": "http://localhost:8000/api/inventory?sku=SKU-0001",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "8000",
+              "path": ["api", "inventory"],
+              "query": [
+                { "key": "sku", "value": "SKU-0001" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Movimento de entrada de estoque (sucesso)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Accept", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"product_id\": 1,\n  \"type\": \"in\",\n  \"quantity\": 10,\n  \"unit_cost\": 50,\n  \"description\": \"Compra de reposição via Postman\"\n}"
+            },
+            "url": {
+              "raw": "http://localhost:8000/api/inventory",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "8000",
+              "path": ["api", "inventory"]
+            }
+          }
+        },
+        {
+          "name": "Movimento de saída com estoque insuficiente (erro 422)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Accept", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"product_id\": 1,\n  \"type\": \"out\",\n  \"quantity\": 9999,\n  \"unit_cost\": 50,\n  \"description\": \"Tentativa de saída maior que o estoque disponível\"\n}"
+            },
+            "url": {
+              "raw": "http://localhost:8000/api/inventory",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "8000",
+              "path": ["api", "inventory"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "02 - Vendas",
+      "item": [
+        {
+          "name": "Venda com 1 item (sucesso / assíncrono)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Accept", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"items\": [\n    {\n      \"product_id\": 1,\n      \"quantity\": 2\n    }\n  ]\n}"
+            },
+            "url": {
+              "raw": "http://localhost:8000/api/sales",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "8000",
+              "path": ["api", "sales"]
+            }
+          }
+        },
+        {
+          "name": "Venda com vários itens (sucesso / assíncrono)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Accept", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"items\": [\n    {\n      \"product_id\": 1,\n      \"quantity\": 3\n    },\n    {\n      \"product_id\": 2,\n      \"quantity\": 5\n    }\n  ]\n}"
+            },
+            "url": {
+              "raw": "http://localhost:8000/api/sales",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "8000",
+              "path": ["api", "sales"]
+            }
+          }
+        },
+        {
+          "name": "Consultar venda por ID (ajustar {id})",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Accept", "value": "application/json" }
+            ],
+            "url": {
+              "raw": "http://localhost:8000/api/sales/123",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "8000",
+              "path": ["api", "sales", "123"]
+            }
+          }
+        },
+        {
+          "name": "Venda com quantidade maior que o estoque (deve falhar no processamento)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Accept", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"items\": [\n    {\n      \"product_id\": 1,\n      \"quantity\": 9999\n    }\n  ]\n}"
+            },
+            "url": {
+              "raw": "http://localhost:8000/api/sales",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "8000",
+              "path": ["api", "sales"]
+            }
+          },
+          "description": "Essa requisição cria uma venda que deve ser marcada como FAILED pelo job, mantendo o estoque inalterado. Depois consulte com GET /api/sales/{id}."
+        }
+      ]
+    },
+    {
+      "name": "03 - Relatórios",
+      "item": [
+        {
+          "name": "Relatório de vendas - período completo (ajuste datas)",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Accept", "value": "application/json" }
+            ],
+            "url": {
+              "raw": "http://localhost:8000/api/reports/sales?start_date=2025-01-01&end_date=2025-12-31",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "8000",
+              "path": ["api", "reports", "sales"],
+              "query": [
+                { "key": "start_date", "value": "2025-01-01" },
+                { "key": "end_date", "value": "2025-12-31" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Relatório de vendas filtrado por SKU (ajuste datas e sku)",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Accept", "value": "application/json" }
+            ],
+            "url": {
+              "raw": "http://localhost:8000/api/reports/sales?start_date=2025-01-01&end_date=2025-12-31&sku=SKU-0001",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "8000",
+              "path": ["api", "reports", "sales"],
+              "query": [
+                { "key": "start_date", "value": "2025-01-01" },
+                { "key": "end_date", "value": "2025-12-31" },
+                { "key": "sku", "value": "SKU-0001" }
+              ]
+            }
+          }
+        }
+      ]
+    }
+  ]
+}
