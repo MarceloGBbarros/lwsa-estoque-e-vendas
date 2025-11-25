@@ -3,6 +3,7 @@
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Api\InventoryController;
 use App\Http\Controllers\Api\SalesController;
+use App\Http\Controllers\Api\ReportsController;
 
 Route::prefix('inventory')->group(function () {
     Route::get('/', [InventoryController::class, 'index']);
@@ -12,4 +13,8 @@ Route::prefix('inventory')->group(function () {
 Route::prefix('sales')->group(function () {
     Route::post('/', [SalesController::class, 'store']);
     Route::get('/{sale}', [SalesController::class, 'show']);
+});
+
+Route::prefix('reports')->group(function () {
+    Route::get('/sales', [ReportsController::class, 'sales']);
 });
