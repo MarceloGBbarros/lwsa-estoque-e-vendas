@@ -289,19 +289,21 @@ Nessa etapa vamos configurar o ambiente para teste.
     `CREATE DATABASE estoque_test;`
 
     - O .env.testing deve estar assim:
-    ```APP_ENV=testing <br>
-    APP_DEBUG=true<br><br>
+    ```
+    APP_ENV=testing 
+    APP_DEBUG=true
     
-    DB_CONNECTION=pgsql<br>
-    DB_HOST=postgres<br>
-    DB_PORT=5432<br>
-    DB_DATABASE=estoque_test<br>
-    DB_USERNAME=estoque_user<br>
-    DB_PASSWORD=secret<br><br>
+    DB_CONNECTION=pgsql
+    DB_HOST=postgres
+    DB_PORT=5432
+    DB_DATABASE=estoque_test
+    DB_USERNAME=estoque_user
+    DB_PASSWORD=secret
     
-    QUEUE_CONNECTION=sync<br>
-    CACHE_DRIVER=array<br>
-    SESSION_DRIVER=array<br>
+    QUEUE_CONNECTION=sync
+    CACHE_DRIVER=array
+    SESSION_DRIVER=array
+    
     ```
 
     
