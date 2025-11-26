@@ -10,6 +10,8 @@ services:
     working_dir: /var/www
     volumes:
       - ./api:/var/www
+    command: >
+      sh -c "composer install && php-fpm"
     networks:
       - estoque_network
 
