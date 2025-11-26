@@ -9,7 +9,7 @@ API REST desenvolvida em **Laravel 11** para um módulo de **controle de estoque
 
 O código da aplicação Laravel está na pasta `api/` deste repositório.
 
----
+
 
 ## 1. Pré-requisitos
 
@@ -61,7 +61,7 @@ No VSCode acesse via terminal na pasta raiz do projeto, rode o comando:<br>
 `docker exec -it estoque_app bash` <br>
 Obs: Dentro do container, o código Laravel (pasta api/) está montado em `/var/www`. Se em seu bash não estiver nesse caminho digite o comando: `cd /var/www` <br>
 
-- 4.1 Criando arquivo `.env` e gerando a APP_KYE
+- 4.1 Criando arquivo `.env` e gerando a APP_KEY
 Dentro de `/var/www` rode 3 comandos:<br>
 `cp .env.example .env`<br>
 `php artisan key:generate`<br>
@@ -78,19 +78,19 @@ Só será necessário na primeira vez ou quando composer.json for alterado.<br><
 O arquivo `.env` já vem preparado. Os valores relevantes que devem ser inseridos ou modificados são:<br>
 
     ```
-    APP_ENV=local<br>
-    APP_DEBUG=true<br>
-    APP_URL=http://localhost:8000<br><br>
+    APP_ENV=local
+    APP_DEBUG=true
+    APP_URL=http://localhost:8000
 
-    DB_CONNECTION=pgsql<br>
-    DB_HOST=postgres<br>
-    DB_PORT=5432<br>
-    DB_DATABASE=estoque<br>
-    DB_USERNAME=estoque_user<br>
-    DB_PASSWORD=secret<br><br>
+    DB_CONNECTION=pgsql
+    DB_HOST=postgres
+    DB_PORT=5432
+    DB_DATABASE=estoque
+    DB_USERNAME=estoque_user
+    DB_PASSWORD=secret
 
-    QUEUE_CONNECTION=database<br>
-    CACHE_DRIVER=file<br>
+    QUEUE_CONNECTION=database
+    CACHE_DRIVER=file
     SESSION_DRIVER=file
     ```
 
@@ -391,5 +391,185 @@ Nessa etapa vamos configurar o ambiente para teste.
      - Os testes atuais cobrem o “feliz” e algumas regras críticas, mas a superfície do sistema é maior.
      - Relatórios e filtros são áreas onde bugs de lógica são comuns, e testes protegem contra regressões.
      - Concorrência é difícil de validar manualmente; ter testes focados nisso aumenta a confiança de que os locks e transações estão se comportando como esperado em cenários extremos.
-    
+
+
+    # Decisões Arquiteturais
+## Banco de dados
+- **Qual banco escolheu e por quê?**
+    - Escolhi PostgreSQL 14, pelos seguintes motivos:
+        - Suporte robusto a transações e locks pessimistas (FOR UPDATE), fundamentais para garantir consistência de estoque em cenários com concorrência evitando que duas transações modifiquem o mesmo dado ao mesmo tempo.
+        - Desempenho consistente para consultas agregadas e filtros por período, importantes para os endpoints de relatórios de vendas.
+        - Integração simples com Docker e com o ecossistema Laravel.
+        - Forte aderência a cenários típicos de ERP/SaaS que precisam de confiabilidade em operações financeiras e de estoque.<br><br>
+        
+- **Como modelou as tabelas?**
+    - **products**
+      - Representa o catálogo de produtos.
+      - Principais campos:
+          - id
+          - sku (código único)
+          - name
+          - cost_price
+          - sale_price
+          - current_stock (estoque atual)
+          - timestamps
+
+     - **inventory_movements**    
+        - Histórico de movimentações de estoque (entrada e saída).
+        - Principais campos:
+            - id
+            - product_id (FK → products)
+            - type (in / out)
+            - quantity
+            - unit_cost
+            - description
+            - archived_at (nullable – usado para arquivamento de dados antigos)
+            - timestamps
+
+    - **sales** 
+        - Registra as vendas efetuadas
+        - Principais campos:
+            - id
+            - total_value
+            - total_cost
+            - profit
+            - status (pending, processed, failed)
+            - timestamps
+
+    - **sale_items** 
+        - Itens pertencentes a uma venda.
+        - Principais campos:
+            - id
+            - sale_id (FK → sales)
+            - product_id (FK → products)
+            - quantity
+            - unit_price
+            - unit_cost
+            - total_line
+            - profit_line
+            - timestamps
+  
+- **Quais índices criou e por quê?**
+    - `products.sku` (unique) 
+        - Por ser uma busca frequente em relatórios e filtros garante unicidade de código de produto.
+    -  `sales.status`, `sales.created_at`
+        - Por ser usadas como filtros para relatórios por período e/ou status esses índices aceleram consultas agregadas.
+
+    -  `sale_items.sale_id`, `sale_items.product_id`,`inventory_movements.product_id`
+        - Uso joins frequentes entre vendas/itens e produtos, com isso os índices nas FKs evitam full scans desnecessários.
+
+    - `inventory_movements.archived_at`
+        - Usado como filtro frequente na tarefa de arquivamento (seleciona movimentações sem `archived_at` e com `created_at` antigo)
+
+- **Quais constraints aplicou?**
+    - **Chaves estrangeiras:**
+        - `inventory_movements.product_id` → `products.id`
+        - `sale_items.product_id` → `products.id`
+        - `sale_items.sale_id` → `sales.id`
+    - **Unique:**
+        - `products.sku` para garantir que não existam dois produtos com o mesmo código.
+
+    - **Integridade de domínio:**
+        - Validação de tipos (`type` em `inventory_movements`, `status` em `sales`) feita na aplicação.
+
+- Diagrama ER (pode usar Mermaid ou imagem)
+  <img width="1277" height="647" alt="image" src="https://github.com/user-attachments/assets/72cda2ab-503c-4ab1-8bfc-b49796c3a43f" />
+
+## Arquitetura:
+  - **Como organizou a estrutura de pastas?**
+  Dentro da pasta api/
+```
+app/
+  Http/
+    Controllers/
+      Api/
+        InventoryController.php
+        SalesController.php
+        ReportsController.php
+    Requests/
+      StoreInventoryMovementRequest.php
+      StoreSaleRequest.php
+      SalesReportRequest.php
+  Models/
+    Product.php
+    InventoryMovement.php
+    Sale.php
+    SaleItem.php
+  Services/
+    InventoryService.php
+    SalesService.php
+    ReportsService.php
+  Jobs/
+    ProcessSaleJob.php
+  Exceptions/
+    InsufficientStockException.php
+  Console/
+    Commands/
+      ArchiveOldInventoryMovements.php
+    Kernel.php
+database/
+  migrations/
+  factories/
+  seeders/
+```
+
+ - **Quais camadas criou (Controller, Service, Repository, etc.)?**
+  - **Controllers**
+    - `InventoryController`, `SalesController`, `ReportsController` Responsáveis por:
+       - receber a requisição HTTP
+       - acionar o Service correspondente
+       - retornar respostas JSON.
+    - Validação feita com Form Requests (`StoreInventoryMovementRequest`, `StoreSaleRequest`, `SalesReportRequest`).
+  
+  - **Services**
+    - `InventoryService`
+      - Registra movimentações de entrada/saída
+      - Usa transações e lockForUpdate em Product
+      - Atualiza current_stock
+      - Invalida/cacheia informações de estoque.
+
+  
+    - `SalesService`
+      - Cria Sale com status pending
+      - Cria SaleItem
+      - Dispara ProcessSaleJob (fila)
+
+    - `ReportsService`
+      - Implementa queries agregadas de vendas com filtros por período e SKU
+      - Aplica cache para relatórios frequentes.
+
+    - **Jobs**
+      - `ProcessSaleJob`
+        - Responsável por processar a venda em background
+        - Usa `DB::transaction` e `lockForUpdate` em `Sale` e `Product` para garantir consistência
+        - Valida estoque, debita `current_stock`, registra `inventory_movements` de saída, calcula totais e marca a venda como `processed` ou `failed`.
+
+    - **Exceptions**
+      - `InsufficientStockException`
+        - Lançada quando não há estoque suficiente em uma operação síncrona (ex.: `POST` `/api/inventory`)
+        - Tratada em `bootstrap/app.php` para retornar 422 com JSON padronizado.
+
+    - **Console Commands + Scheduler**
+      - `ArchiveOldInventoryMovements`
+        - Comando que arquiva movimentações de estoque mais antigas que 90 dias.
+      - Agendado em `app/Console/Kernel.php` para rodar diariamente.
+        
+
+- **Por que escolheu essa arquitetura?**
+  - Controllers ficam focados em HTTP e DTOs de entrada/saída.
+  - Services encapsulam a regra de negócio (estoque, vendas, relatórios).
+  - Jobs separam aquilo que é pesado/assíncrono, como processamento de venda e atualização de estoque, para não bloquear a resposta da API.
+  - Commands + Scheduler tratam de manutenção periódica (arquivamento de dados antigos).
+  - Exceptions customizadas permitem tratamento consistente de erros e respostas HTTP adequadas.
+  Essa organização facilita a evolução do sistema (ex.: adicionar novos canais de entrada além da API HTTP) e melhora a legibilidade/testabilidade do código.
+
+- **Quais padrões de design aplicou e onde?**
+  - Service Layer: centraliza regras de negócio em classes de serviço.
+  - Command Pattern: usado no comando `ArchiveOldInventoryMovements`.
+  - Job/Queue: encapsula a unidade de trabalho assíncrono (`ProcessSaleJob`).
+  - Exception Personalizada: `InsufficientStockException` para representar um erro de domínio com um contrato de resposta HTTP específico.
+  - Active Record (Eloquent): para mapeamento objeto-relacional com os modelos.
+
+---
+
 
